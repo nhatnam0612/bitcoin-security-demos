@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitcoin Security Demos</title>
+  <link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+
+<div class="app">
+  <header class="app-header">
+    <h1>Bitcoin Security Demos</h1>
+    <p>SHA-256 / PoW · Selfish Mining · Fork Security · Stale Rate · Stratum v1 vs v2</p>
+  </header>
+
+  <!-- ---- Tab navigation ---- -->
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" aria-selected="true"  onclick="showPanel('pow')"     >01 · SHA-256 / PoW</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('selfish')" >02 · Selfish mining</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('fork')"    >03 · Forks &amp; confirms</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('stale')"   >04 · Stale rate</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('stratum')" >05 · Stratum v1 vs v2</button>
+  </nav>
+
+  <!-- ================================================================
+       PANEL 1 — SHA-256 / Proof-of-Work
+       ================================================================ -->
+  <section class="panel active" id="panel-pow" role="tabpanel">
+    <p class="section-title">Proof-of-work mining simulator</p>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">nonce</div>
+        <div class="metric-value" id="pow-nonce">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">hashes / s</div>
+        <div class="metric-value" id="pow-hps">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">leading zeros</div>
+        <div class="metric-value" id="pow-zeros">0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">status</div>
+        <div class="metric-value" id="pow-status" style="font-size:13px;color:var(--color-text-secondary)">idle</div>
+      </div>
+    </div>
+
+    <div class="control-row">
+      <label for="pow-diff">difficulty (zeros)</label>
+      <input type="range" id="pow-diff" min="1" max="6" step="1" value="3"
+             oninput="document.getElementById('pow-diff-val').textContent = this.value" />
+      <span class="val" id="pow-diff-val">3</span>
+    </div>
+
+    <div class="control-row">
+      <label for="pow-data">block data</label>
+      <input type="text" id="pow-data"
+             value="Block #800001 | Prev: 0000abc1 | Tx: 512" />
+    </div>
+
+    <div class="hash-display" id="pow-hash">
+      <span style="color:var(--color-text-tertiary)">hash will appear here...</span>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="pow-progress" style="width:0%"></div>
+    </div>
+    <div style="font-size:10px;color:var(--color-text-tertiary);text-align:right;margin-bottom:12px"
+         id="pow-progress-label">0 hashes attempted</div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" id="pow-mine-btn" onclick="toggleMining()">▶ start mining</button>
+      <button class="btn" onclick="resetMining()">reset</button>
+    </div>
+
+    <div class="log" id="pow-log">
+      <span class="ok">// SHA-256 proof-of-work demo — real 256-bit hashes via Web Crypto API</span><br>
+      <span>// adjust difficulty and press start</span><br>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       PANEL 2 — Selfish Mining Monte Carlo
+       ================================================================ -->
+  <section class="panel" id="panel-selfish" role="tabpanel">
+    <p class="section-title">Selfish mining — Monte Carlo simulation</p>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">honest revenue</div>
+        <div class="metric-value" id="sm-honest">—</div>
+        <div class="metric-sub">expected: 1 − α</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">selfish revenue</div>
+        <div class="metric-value" id="sm-selfish">—</div>
+        <div class="metric-sub">expected: &gt; α</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">gain factor</div>
+        <div class="metric-value" id="sm-gain">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">extra orphans</div>
+        <div class="metric-value" id="sm-orphan">—</div>
+      </div>
+    </div>
+
+    <div class="control-row">
+      <label for="sm-alpha">attacker α (%)</label>
+      <input type="range" id="sm-alpha" min="5" max="49" step="1" value="33"
+             oninput="document.getElementById('sm-alpha-val').textContent = this.value + '%'; runSelfish()" />
+      <span class="val" id="sm-alpha-val">33%</span>
+    </div>
+
+    <div class="control-row">
+      <label for="sm-gamma">γ (network reach)</label>
+      <input type="range" id="sm-gamma" min="0" max="100" step="5" value="50"
+             oninput="document.getElementById('sm-gamma-val').textContent = (this.value / 100).toFixed(2); runSelfish()" />
+      <span class="val" id="sm-gamma-val">0.50</span>
+    </div>
+
+    <div class="control-row">
+      <label for="sm-rounds">rounds</label>
+      <input type="range" id="sm-rounds" min="1000" max="50000" step="1000" value="10000"
+             oninput="document.getElementById('sm-rounds-val').textContent = (+this.value).toLocaleString(); runSelfish()" />
+      <span class="val" id="sm-rounds-val">10,000</span>
+    </div>
+
+    <div class="chart-area">
+      <canvas id="smChart" role="img"
+              aria-label="Bar chart comparing expected honest revenue, actual honest revenue, and selfish miner revenue share">
+        Revenue comparison loading...
+      </canvas>
+    </div>
+
+    <div style="font-size:11px;color:var(--color-text-secondary);padding:8px 12px;
+                background:var(--color-bg-secondary);border-radius:var(--border-radius-md)"
+         id="sm-insight">
+      Loading simulation...
+    </div>
+  </section>
+
+  <!-- ================================================================
+       PANEL 3 — Forks & Confirmation Security
+       ================================================================ -->
+  <section class="panel" id="panel-fork" role="tabpanel">
+    <p class="section-title">Fork races &amp; confirmation security</p>
+
+    <div class="control-row">
+      <label for="fork-power">attacker power (%)</label>
+      <input type="range" id="fork-power" min="1" max="49" step="1" value="30"
+             oninput="document.getElementById('fork-power-val').textContent = this.value + '%'; updateFork()" />
+      <span class="val" id="fork-power-val">30%</span>
+    </div>
+
+    <p style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">
+      Click a confirmation depth to see double-spend success probability (Nakamoto 2008):
+    </p>
+
+    <div class="confirm-grid" id="confirm-grid"></div>
+
+    <div class="metrics" style="margin-bottom:1rem">
+      <div class="metric">
+        <div class="metric-label">confirmations</div>
+        <div class="metric-value" id="fork-confs">1</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">success prob</div>
+        <div class="metric-value" id="fork-prob" style="color:var(--color-red)">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">risk level</div>
+        <div class="metric-value" id="fork-risk" style="font-size:13px">—</div>
+      </div>
+    </div>
+
+    <p class="section-title" style="margin-bottom:8px">blockchain state</p>
+    <div style="display:flex;gap:12px;margin-bottom:6px;font-size:10px">
+      <span style="color:var(--color-blue)">■ honest chain</span>
+      <span style="color:var(--color-amber)">■ attacker fork</span>
+      <span style="color:var(--color-red)">■ orphaned</span>
+    </div>
+    <div class="chain" id="fork-chain"></div>
+
+    <button class="btn" onclick="simulateFork()">simulate fork race</button>
+  </section>
+
+  <!-- ================================================================
+       PANEL 4 — Stale Rate
+       ================================================================ -->
+  <section class="panel" id="panel-stale" role="tabpanel">
+    <p class="section-title">Stale block rate vs. propagation latency</p>
+
+    <div class="control-row">
+      <label for="stale-interval">block interval (s)</label>
+      <input type="range" id="stale-interval" min="10" max="600" step="10" value="600"
+             oninput="document.getElementById('stale-interval-val').textContent = this.value + 's'; updateStale()" />
+      <span class="val" id="stale-interval-val">600s</span>
+    </div>
+
+    <div class="control-row">
+      <label for="stale-prop">propagation delay (s)</label>
+      <input type="range" id="stale-prop" min="0.5" max="30" step="0.5" value="2"
+             oninput="document.getElementById('stale-prop-val').textContent = this.value + 's'; updateStale()" />
+      <span class="val" id="stale-prop-val">2s</span>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">stale rate</div>
+        <div class="metric-value" id="stale-rate">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">wasted PoW</div>
+        <div class="metric-value" id="stale-waste">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">effective hashrate</div>
+        <div class="metric-value" id="stale-eff">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">selfish threshold</div>
+        <div class="metric-value" id="stale-thresh">—</div>
+        <div class="metric-sub">adjusted for stale rate</div>
+      </div>
+    </div>
+
+    <div class="chart-area" style="height:220px">
+      <canvas id="staleChart" role="img"
+              aria-label="Line chart showing stale block rate as a function of propagation delay">
+        Stale rate chart loading...
+      </canvas>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       PANEL 5 — Stratum v1 vs v2
+       ================================================================ -->
+  <section class="panel" id="panel-stratum" role="tabpanel">
+    <p class="section-title">Stratum protocol comparison</p>
+
+    <div class="metrics" style="margin-bottom:1.5rem">
+      <div class="metric">
+        <div class="metric-label">v1 msg overhead</div>
+        <div class="metric-value">~200B</div>
+        <div class="metric-sub">JSON, plaintext</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">v2 msg overhead</div>
+        <div class="metric-value">~32B</div>
+        <div class="metric-sub">binary, encrypted</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">bandwidth saving</div>
+        <div class="metric-value" style="color:var(--color-green)">~85%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">tx selection</div>
+        <div class="metric-value" style="font-size:13px">miner-side</div>
+        <div class="metric-sub">v2 only</div>
+      </div>
+    </div>
+
+    <div class="control-row" style="margin-bottom:1rem">
+      <label for="stratum-msg">simulate message</label>
+      <select id="stratum-msg" onchange="showStratumMsg()">
+        <option value="subscribe">mining.subscribe (handshake)</option>
+        <option value="authorize">mining.authorize</option>
+        <option value="notify">mining.notify (new job)</option>
+        <option value="submit">mining.submit (share)</option>
+        <option value="difficulty">mining.set_difficulty</option>
+      </select>
+    </div>
+
+    <div class="stratum-compare">
+      <div class="protocol-card">
+        <div class="proto-title">
+          Stratum v1 <span class="proto-badge badge-old">JSON</span>
+        </div>
+        <div class="msg-flow" id="v1-flow"></div>
+        <div style="margin-top:10px;font-size:10px;color:var(--color-text-tertiary)"
+             id="v1-size"></div>
+      </div>
+      <div class="protocol-card">
+        <div class="proto-title">
+          Stratum v2 <span class="proto-badge badge-new">binary</span>
+        </div>
+        <div class="msg-flow" id="v2-flow"></div>
+        <div style="margin-top:10px;font-size:10px;color:var(--color-text-tertiary)"
+             id="v2-size"></div>
+      </div>
+    </div>
+
+    <div class="security-grid">
+      <div class="security-card" style="border-left:2px solid var(--color-red)">
+        <strong>v1 security risks</strong>
+        <span style="color:var(--color-text-secondary)">
+          · no encryption (MITM attacks possible)<br>
+          · pool controls transaction selection<br>
+          · hashrate hijacking via BGP/DNS<br>
+          · no server-side authentication
+        </span>
+      </div>
+      <div class="security-card" style="border-left:2px solid var(--color-green)">
+        <strong>v2 improvements</strong>
+        <span style="color:var(--color-text-secondary)">
+          · Noise_NX protocol encryption<br>
+          · miner selects own transactions<br>
+          · authenticated channels<br>
+          · Job Negotiator sub-protocol
+        </span>
+      </div>
+    </div>
+  </section>
+</div><!-- /.app -->
+
+<!-- External dependencies -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<!-- Demo modules -->
+<script src="src/demos/pow.js"></script>
+<script src="src/demos/selfish.js"></script>
+<script src="src/demos/fork.js"></script>
+<script src="src/demos/stale.js"></script>
+<script src="src/demos/stratum.js"></script>
+
+<!-- Tab switching + initial panel setup -->
+<script>
+  function showPanel(id) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    });
+    document.getElementById('panel-' + id).classList.add('active');
+    event.target.classList.add('active');
+    event.target.setAttribute('aria-selected', 'true');
+
+    // Lazy-init panels that need it
+    if (id === 'selfish') setTimeout(runSelfish, 80);
+    if (id === 'stale')   setTimeout(initStaleChart, 80);
+    if (id === 'fork')    setTimeout(() => { buildConfirmGrid(); updateFork(); }, 80);
+    if (id === 'stratum') setTimeout(showStratumMsg, 80);
+  }
+
+  // Initialize panels that are visible on load or need data
+  document.addEventListener('DOMContentLoaded', () => {
+    buildConfirmGrid();
+    updateFork();
+    showStratumMsg();
+    initStaleChart();
+    setTimeout(runSelfish, 100);
+  });
+</script>
+
+</body>
+</html>

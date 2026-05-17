@@ -11,22 +11,128 @@
 <div class="app">
   <header class="app-header">
     <h1>Bitcoin Security Demos</h1>
-    <p>SHA-256 / PoW · Selfish Mining · Fork Security · Stale Rate · Stratum v1 vs v2</p>
+    <p>Avalanche Effect · SHA-256 / PoW · Selfish Mining · Fork Security · Stale Rate · Stratum v1 vs v2</p>
   </header>
 
   <!-- ---- Tab navigation ---- -->
   <nav class="tabs" role="tablist">
-    <button class="tab active" role="tab" aria-selected="true"  onclick="showPanel('pow')"     >01 · SHA-256 / PoW</button>
-    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('selfish')" >02 · Selfish mining</button>
-    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('fork')"    >03 · Forks &amp; confirms</button>
-    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('stale')"   >04 · Stale rate</button>
-    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('stratum')" >05 · Stratum v1 vs v2</button>
+    <button class="tab active" role="tab" aria-selected="true"  onclick="showPanel('avalanche')" >01 · Avalanche Effect</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('pow')"       >02 · SHA-256 / PoW</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('selfish')"   >03 · Selfish mining</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('fork')"      >04 · Forks &amp; confirms</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('stale')"     >05 · Stale rate</button>
+    <button class="tab"        role="tab" aria-selected="false" onclick="showPanel('stratum')"   >06 · Stratum v1 vs v2</button>
   </nav>
 
   <!-- ================================================================
-       PANEL 1 — SHA-256 / Proof-of-Work
+       PANEL 1 — Avalanche Effect / SHA-256 Diffusion
        ================================================================ -->
-  <section class="panel active" id="panel-pow" role="tabpanel">
+  <section class="panel active" id="panel-avalanche" role="tabpanel">
+    <p class="section-title">SHA-256 diffusion — Avalanche Effect</p>
+
+    <p style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">
+      This lab checks the theory from Chapter 4: a minimal input change should change
+      about half of the 256 output bits. The demo measures the Hamming distance between
+      two SHA-256 or Double-SHA-256 hashes.
+    </p>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">mean distance</div>
+        <div class="metric-value" id="av-mean">—</div>
+        <div class="metric-sub">expected: 128 bits</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">changed bits</div>
+        <div class="metric-value" id="av-change">—</div>
+        <div class="metric-sub">expected: 50%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">std. deviation</div>
+        <div class="metric-value" id="av-std">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">last run</div>
+        <div class="metric-value" id="av-last">—</div>
+      </div>
+    </div>
+
+    <div class="metrics" style="margin-top:-6px">
+      <div class="metric">
+        <div class="metric-label">median</div>
+        <div class="metric-value" id="av-median">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">min / max</div>
+        <div class="metric-value" id="av-minmax">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">theory link</div>
+        <div class="metric-value" style="font-size:13px">diffusion</div>
+        <div class="metric-sub">Avalanche Effect</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Bitcoin link</div>
+        <div class="metric-value" style="font-size:13px">nonce</div>
+        <div class="metric-sub">Double-SHA-256 header</div>
+      </div>
+    </div>
+
+    <div class="control-row">
+      <label for="av-mode">experiment</label>
+      <select id="av-mode">
+        <option value="bitflip">Random 80-byte input + 1-bit flip</option>
+        <option value="nonce">Bitcoin-like 80-byte header + nonce + 1</option>
+      </select>
+    </div>
+
+    <div class="control-row">
+      <label for="av-hash">hash function</label>
+      <select id="av-hash">
+        <option value="sha256">SHA-256</option>
+        <option value="double" selected>Double-SHA-256</option>
+      </select>
+    </div>
+
+    <div class="control-row">
+      <label for="av-runs">experiments</label>
+      <input type="range" id="av-runs" min="100" max="3000" step="100" value="1000"
+             oninput="document.getElementById('av-runs-val').textContent = (+this.value).toLocaleString()" />
+      <span class="val" id="av-runs-val">1,000</span>
+    </div>
+
+    <div class="chart-area" style="height:230px">
+      <canvas id="avalancheChart" role="img"
+              aria-label="Histogram showing Hamming distances between SHA-256 hash outputs">
+        Avalanche histogram loading...
+      </canvas>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="av-progress" style="width:0%"></div>
+    </div>
+    <div style="font-size:10px;color:var(--color-text-tertiary);text-align:right;margin-bottom:12px"
+         id="av-progress-label">0 experiments</div>
+
+    <div style="display:flex;gap:8px">
+      <button class="btn primary" id="av-run-btn" onclick="runAvalancheDemo()">run simulation</button>
+      <button class="btn" onclick="resetAvalancheDemo()">reset</button>
+    </div>
+
+    <div class="hash-display" id="av-example" style="margin-top:12px">
+      <span style="color:var(--color-text-tertiary)">example hashes will appear here...</span>
+    </div>
+
+    <div class="log" id="av-log">
+      <span class="ok">// Avalanche Effect demo — compare two almost identical inputs</span><br>
+      <span>// expected mean distance: about 128 / 256 bits</span><br>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       PANEL 2 — SHA-256 / Proof-of-Work
+       ================================================================ -->
+  <section class="panel" id="panel-pow" role="tabpanel">
     <p class="section-title">Proof-of-work mining simulator</p>
 
     <div class="metrics">
@@ -83,7 +189,7 @@
   </section>
 
   <!-- ================================================================
-       PANEL 2 — Selfish Mining Monte Carlo
+       PANEL 3 — Selfish Mining Monte Carlo
        ================================================================ -->
   <section class="panel" id="panel-selfish" role="tabpanel">
     <p class="section-title">Selfish mining — Monte Carlo simulation</p>
@@ -145,7 +251,7 @@
   </section>
 
   <!-- ================================================================
-       PANEL 3 — Forks & Confirmation Security
+       PANEL 4 — Forks & Confirmation Security
        ================================================================ -->
   <section class="panel" id="panel-fork" role="tabpanel">
     <p class="section-title">Fork races &amp; confirmation security</p>
@@ -190,7 +296,7 @@
   </section>
 
   <!-- ================================================================
-       PANEL 4 — Stale Rate
+       PANEL 5 — Stale Rate
        ================================================================ -->
   <section class="panel" id="panel-stale" role="tabpanel">
     <p class="section-title">Stale block rate vs. propagation latency</p>
@@ -238,7 +344,7 @@
   </section>
 
   <!-- ================================================================
-       PANEL 5 — Stratum v1 vs v2
+       PANEL 6 — Stratum v1 vs v2
        ================================================================ -->
   <section class="panel" id="panel-stratum" role="tabpanel">
     <p class="section-title">Stratum protocol comparison</p>
@@ -322,6 +428,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 
 <!-- Demo modules -->
+<script src="src/demos/avalanche.js"></script>
 <script src="src/demos/pow.js"></script>
 <script src="src/demos/selfish.js"></script>
 <script src="src/demos/fork.js"></script>
@@ -341,6 +448,7 @@
     event.target.setAttribute('aria-selected', 'true');
 
     // Lazy-init panels that need it
+    if (id === 'avalanche') setTimeout(initAvalancheDemo, 80);
     if (id === 'selfish') setTimeout(runSelfish, 80);
     if (id === 'stale')   setTimeout(initStaleChart, 80);
     if (id === 'fork')    setTimeout(() => { buildConfirmGrid(); updateFork(); }, 80);
@@ -349,6 +457,7 @@
 
   // Initialize panels that are visible on load or need data
   document.addEventListener('DOMContentLoaded', () => {
+    initAvalancheDemo();
     buildConfirmGrid();
     updateFork();
     showStratumMsg();
